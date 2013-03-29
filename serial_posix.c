@@ -16,12 +16,15 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
+#if defined(__WIN32__) || defined(__CYGWIN__)
+#else
 
 
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <termios.h>
+#include <sys/ioctl.h>
 #include <stdio.h>
 #include <assert.h>
 
@@ -68,6 +71,37 @@ void serial_flush(const serial_t *h) {
 	assert(h && h->fd > -1);
 	tcflush(h->fd, TCIFLUSH);
 }
+
+int serial_signal(const serial_t *h, int signal, int state)
+{
+    int status;
+//    printf("DEBUG - Setting signal %u to state %u\n", signal, state);
+
+    if (ioctl(h->fd, TIOCMGET, &status) == -1) {
+        perror("serial_posix.c/serial_signal(): TIOCMGET");
+        return 0;
+    }
+    if (state)
+        status |= signal;
+    else
+        status &= ~signal;
+    if (ioctl(h->fd, TIOCMSET, &status) == -1) {
+        perror("serial_posix.c/serial_signal(): TIOCMSET");
+        return 0;
+    }
+    return 1;
+}
+
+void serial_flush_incoming(const serial_t *h) {
+	tcflush(h->fd, TCIFLUSH);
+}
+
+
+int serial_signal_dtr(const serial_t *h, int state)	//Wrappers for platform independence
+{ return serial_signal(h, TIOCM_DTR, state);}
+
+int serial_signal_rts(const serial_t *h, int state)
+{ return serial_signal(h, TIOCM_RTS, state);}
 
 serial_err_t serial_setup(serial_t *h, const serial_baud_t baud, const serial_bits_t bits, const serial_parity_t parity, const serial_stopbit_t stopbit) {
 	assert(h && h->fd > -1);
@@ -222,3 +256,4 @@ const char* serial_get_setup_str(const serial_t *h) {
 	return str;
 }
 
+#endif

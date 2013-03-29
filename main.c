@@ -44,7 +44,7 @@ parser_t	*parser		= NULL;
 
 /* settings */
 char		*device		= NULL;
-serial_baud_t	baudRate	= SERIAL_BAUD_57600;
+serial_baud_t	baudRate	= SERIAL_BAUD_115200;
 int		rd	 	= 0;
 int		wr		= 0;
 int		wu		= 0;
@@ -59,9 +59,31 @@ char		force_binary	= 0;
 char		reset_flag	= 1;
 char		*filename;
 
+enum serialSignal {
+	SS_Default,
+	SS_None,
+	SS_DTR,
+	SS_RTS,
+	SS_iDTR,
+	SS_iRTS
+};
+
+enum serialSignal resetMode = SS_Default; //Default means, upload stmreset_binary, none means don't take action
+enum serialSignal bootMode = SS_Default; //If no signal is selected, nothing is done
+
+enum modeFlags {
+	modeBootSystem = 0,
+	modeBootFlash = 1,
+
+	modeReset = 2
+
+};
+
+
 /* functions */
 int  parse_options(int argc, char *argv[]);
 void show_help(char *name);
+void setMode(enum modeFlags flags);
 
 int main(int argc, char* argv[]) {
 	int ret = 1;
@@ -133,6 +155,15 @@ int main(int argc, char* argv[]) {
 		perror(device);
 		goto close;
 	}
+
+	setMode(modeBootSystem);
+	setMode(modeBootSystem | modeReset);
+
+	//Clear incoming buffers
+	serial_flush_incoming(serial);
+
+	setMode(modeBootSystem);
+
 
 	printf("Serial Config: %s\n", serial_get_setup_str(serial));
 	if (!(stm = stm32_init(serial, init_flag))) goto close;
@@ -283,11 +314,26 @@ close:
 	}
 
 	if (stm && reset_flag) {
-		fprintf(stdout, "\nResetting device... ");
-		fflush(stdout);
-		if (stm32_reset_device(stm))
-			fprintf(stdout, "done.\n");
-		else	fprintf(stdout, "failed.\n");
+
+		setMode(modeBootFlash);
+
+		switch (resetMode) {
+			case SS_Default:
+				fprintf(stdout, "\nSoftware resetting device... ");
+				fflush(stdout);
+
+				if (stm32_reset_device(stm))
+					fprintf(stdout, "done.\n");
+				else	fprintf(stdout, "failed.\n");
+				break;
+
+			case SS_None:
+				break;
+			default:
+				setMode(modeBootFlash | modeReset);
+				setMode(modeBootFlash);
+		}
+
 	}
 
 	if (p_st  ) parser->close(p_st);
@@ -300,7 +346,7 @@ close:
 
 int parse_options(int argc, char *argv[]) {
 	int c;
-	while((c = getopt(argc, argv, "b:r:w:e:vn:g:fchus:")) != -1) {
+	while((c = getopt(argc, argv, "b:r:w:e:vn:g:fchus:R:B:")) != -1) {
 		switch(c) {
 			case 'b':
 				baudRate = serial_get_baud(strtoul(optarg, NULL, 0));
@@ -363,6 +409,29 @@ int parse_options(int argc, char *argv[]) {
 			case 'h':
 				show_help(argv[0]);
 				return 1;
+			case 'B':
+				if (strncmp(optarg, "-RTS", 4)==0) bootMode=SS_iRTS;
+				else if (strncmp(optarg, "-DTR", 4)==0) bootMode=SS_iDTR;
+				else if (strncmp(optarg, "RTS", 3)==0) bootMode=SS_RTS;
+				else if (strncmp(optarg, "DTR", 3)==0) bootMode=SS_DTR;
+				else {
+					fprintf(stderr, "ERROR: Boot must be -RTS, -DTR, RTS or DTR when specified\n");
+					show_help(argv[0]);
+					return 1;
+				}
+				break;
+			case 'R':
+				if (strncmp(optarg, "NONE", 4)==0) resetMode=SS_None;
+				else if (strncmp(optarg, "-RTS", 4)==0) resetMode=SS_iRTS;
+				else if (strncmp(optarg, "-DTR", 4)==0) resetMode=SS_iDTR;
+				else if (strncmp(optarg, "RTS", 3)==0) resetMode=SS_RTS;
+				else if (strncmp(optarg, "DTR", 3)==0) resetMode=SS_DTR;
+				else {
+					fprintf(stderr, "ERROR: Reset must be -RTS, -DTR, RTS, DTR or NONE when specified\n");
+					show_help(argv[0]);
+					return 1;
+				}
+				break;
 		}
 	}
 
@@ -392,8 +461,8 @@ int parse_options(int argc, char *argv[]) {
 
 void show_help(char *name) {
 	fprintf(stderr,
-		"Usage: %s [-bvngfhc] [-[rw] filename] /dev/ttyS0\n"
-		"	-b rate		Baud rate (default 57600)\n"
+		"Usage: %s [-bvngfhc] [-[rw] filename] [-RB [-]DTR|RTS] /dev/ttyS0\n"
+		"	-b rate		Baud rate (default 115200)\n"
 		"	-r filename	Read flash to file\n"
 		"	-w filename	Write flash to file\n"
 		"	-u		Disable the flash write-protection\n"
@@ -407,6 +476,15 @@ void show_help(char *name) {
 		"	-c		Resume the connection (don't send initial INIT)\n"
 		"			*Baud rate must be kept the same as the first init*\n"
 		"			This is useful if the reset fails\n"
+		"	-R signal	Reset device after upload using serial signal\n"
+			"			Signal can be DTR or RTS. A hyphen before the signal\n"
+			"			indicates it is inverted. Logic high is applied for reset\n"
+			"			NONE can be given if one does not wish to reset at all\n"
+		"	-B signal	Use signal to select boot mode if a serial signal is connected\n"
+			"			to the boot selection pin. Signal can be DTR or RTS.\n"
+			"			A hyphen before the signal indicates it is inverted\n"
+			"			Logic low is applied for system boot (upload) and logic high\n"
+			"			for normal boot\n"
 		"\n"
 		"Examples:\n"
 		"	Get device information:\n"
@@ -428,3 +506,87 @@ void show_help(char *name) {
 	);
 }
 
+void setMode(enum modeFlags flags)
+{
+//	printf("Setting mode: %u\n", flags);
+	switch (resetMode) {
+		case SS_DTR:
+			serial_signal_dtr(serial, flags & modeReset);
+			break;
+		case SS_iDTR:
+			serial_signal_dtr(serial, (~flags) & modeReset);
+			break;
+		case SS_RTS:
+			serial_signal_rts(serial, flags & modeReset);
+			break;
+		case SS_iRTS:
+			serial_signal_rts(serial, (~flags) & modeReset);
+			break;
+		default:
+			break;
+	}
+	switch (bootMode) {
+		case SS_DTR:
+			serial_signal_dtr(serial, flags & modeBootFlash);
+			break;
+		case SS_iDTR:
+			serial_signal_dtr(serial, (~flags) & modeBootFlash);
+			break;
+		case SS_RTS:
+			serial_signal_rts(serial, flags & modeBootFlash);
+			break;
+		case SS_iRTS:
+			serial_signal_rts(serial, (~flags) & modeBootFlash);
+			break;
+		default:
+			break;
+	}
+	usleep(1000);	//Provide small delay of 1 ms
+}
+
+//int stm32_hwreset(const serial_t* serial)
+//{
+//	//Note - This code does not check if the calls succeed which it should do
+//	printf("Hardware resetting device\n");
+//	printf("PRESS KEY TO KEEP FAILING - RESET HIGH\n"); getchar(); //DEBUG WAIT
+//	switch (resetMode) {
+//		case SS_DTR:
+//			serial_signal_dtr(serial, 1);
+//			break;
+//		case SS_iDTR:
+//			serial_signal_dtr(serial, 0);
+//			break;
+//		case SS_RTS:
+//			serial_signal_rts(serial, 1);
+//			break;
+//		case SS_iRTS:
+//			serial_signal_rts(serial, 0);
+//			break;
+//
+//		case SS_Default:
+//		case SS_None:
+//			printf("WARNING - Can't hardware reset without using hardware\n");
+//			break;
+//	}
+//	usleep(1000);	//Wait one ms
+//	printf("PRESS KEY TO KEEP FAILING - RESET LOW\n"); getchar(); //DEBUG WAIT
+//	switch (resetMode) {
+//		case SS_DTR:
+//			serial_signal_dtr(serial, 0);
+//			break;
+//		case SS_iDTR:
+//			serial_signal_dtr(serial, 1);
+//			break;
+//		case SS_RTS:
+//			serial_signal_rts(serial, 0);
+//			break;
+//		case SS_iRTS:
+//			serial_signal_rts(serial, 1);
+//			break;
+//
+//		case SS_Default:
+//		case SS_None:
+//			break;
+//	}
+//	return 1;
+//}
