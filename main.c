@@ -35,6 +35,8 @@
 #include "parsers/binary.h"
 #include "parsers/hex.h"
 
+#include "rpi_gpio.h"
+
 /* device globals */
 serial_t	*serial		= NULL;
 stm32_t		*stm		= NULL;
@@ -59,17 +61,31 @@ char		force_binary	= 0;
 char		reset_flag	= 1;
 char		*filename;
 
-enum serialSignal {
-	SS_Default,
-	SS_None,
-	SS_DTR,
-	SS_RTS,
-	SS_iDTR,
-	SS_iRTS
-};
+typedef enum {
+	SD_Default,	//Default stm32flash behaviour
+	SD_None,		//No action
+	SD_CurrentSerial,	//Use current serial port
+	SD_RaspberryPi	//User raspberry pi gpio
+} signal_device;
 
-enum serialSignal resetMode = SS_Default; //Default means, upload stmreset_binary, none means don't take action
-enum serialSignal bootMode = SS_Default; //If no signal is selected, nothing is done
+typedef enum {
+	SS_DTR,
+	SS_RTS
+} signal_serial ;
+
+
+
+typedef struct {
+	signal_device device;
+	char inverted;
+	union {
+		int id;
+		signal_serial serial;
+		int raspberry_gpio;
+	} signal;
+} signal_data;
+
+signal_data reset_signal, boot_signal;
 
 enum modeFlags {
 	modeBootSystem = 0,
@@ -80,18 +96,137 @@ enum modeFlags {
 };
 
 
+
 /* functions */
 int  parse_options(int argc, char *argv[]);
 void show_help(char *name);
 void setMode(enum modeFlags flags);
+int parse_signal(signal_data *result);
+
+void set_signal(signal_data *sig, int value);
+
+
+void set_signal(signal_data *sig, int value) {
+	if (sig->inverted) value = !value;
+	switch (sig->device) {
+		case SD_CurrentSerial:
+			switch (sig->signal.serial) {
+				case SS_DTR:
+					serial_signal_dtr(serial, value);
+					break;
+				case SS_RTS:
+					serial_signal_rts(serial, value);
+					break;
+			}
+			break;
+		case SD_RaspberryPi:
+			if (value) {
+				RPI_GPIO_SET = 1<<sig->signal.raspberry_gpio;
+			} else {
+				RPI_GPIO_CLR = 1<<sig->signal.raspberry_gpio;
+			}
+			break;
+	}
+	
+}
+
+
+
+
+
+int parse_signal(signal_data *result) {
+	char *arg=optarg;
+	result->inverted=0;
+
+	if (optarg[0] == '-') {
+		result->inverted=1;
+		arg=optarg+1;
+	}
+	
+	if (strcmp(arg, "none") == 0) {
+		result->device = SD_None;
+		return (0);
+	}
+
+	if (strncmp(arg, "cs.", 3) == 0) {
+		//Current Serial Port
+		result->device = SD_CurrentSerial;
+		if (strcmp(arg, "cs.dtr") == 0) {
+			result->signal.serial = SS_DTR;
+			return(0);
+		} else if (strcmp(arg, "cs.rts") == 0) {
+			result->signal.serial = SS_RTS;			
+			return(0);
+		}
+	}
+	if (strncmp(arg, "rpi.", 4) == 0) {
+		//Raspberry Pi
+		result->device = SD_RaspberryPi;
+		if (strncmp(arg, "rpi.gpio", 8) == 0) {
+			result->signal.raspberry_gpio = strtoul(arg+8, NULL, 0);
+			switch (result->signal.raspberry_gpio) {
+				case 14: //Both rpi 1 and 2
+				case 15:
+				case 18:
+				case 23:
+				case 24:
+				case 25:
+				case 8:
+				case 7:
+				case 0:
+				case 1:
+				case 2:
+				case 3:
+				case 4:
+				case 17:
+				case 21:
+				case 27:
+				case 22:
+				case 10:
+				case 9:
+				case 11:
+					return(0);
+			}
+		}
+	}
+	return(-1); //Unknown
+
+}
+
+void gpio_rpi_output(int g) {
+	RPI_INP_GPIO(g); // must use INP_GPIO before we can use OUT_GPIO
+	RPI_OUT_GPIO(g);
+}
 
 int main(int argc, char* argv[]) {
+	
+	reset_signal.device = SD_Default;
+	boot_signal.device = SD_Default;
+	
 	int ret = 1;
 	parser_err_t perr;
 
 	printf("stm32flash - http://stm32flash.googlecode.com/\n\n");
 	if (parse_options(argc, argv) != 0)
 		goto close;
+
+	
+	//Init gpio if needed  TODO: put this in proper place after figuring out the proper place
+
+	if ((reset_signal.device == SD_RaspberryPi) || (boot_signal.device == SD_RaspberryPi)) {
+		rpi_gpio_setup_io();
+	}
+	
+	if (reset_signal.device == SD_RaspberryPi) {
+		//printf("Initierar reset gpio %u\n", reset_signal.signal.raspberry_gpio);
+		gpio_rpi_output(reset_signal.signal.raspberry_gpio);
+	}
+	if (boot_signal.device == SD_RaspberryPi) {
+		//printf("Initierar boot gpio %u\n", boot_signal.signal.raspberry_gpio);
+		gpio_rpi_output(boot_signal.signal.raspberry_gpio);
+	}
+
+	//printf("Nu kör vi\n");
 
 	if (wr) {
 		/* first try hex */
@@ -317,8 +452,8 @@ close:
 
 		setMode(modeBootFlash);
 
-		switch (resetMode) {
-			case SS_Default:
+		switch (reset_signal.device) {
+			case SD_Default:
 				fprintf(stdout, "\nSoftware resetting device... ");
 				fflush(stdout);
 
@@ -327,7 +462,7 @@ close:
 				else	fprintf(stdout, "failed.\n");
 				break;
 
-			case SS_None:
+			case SD_None:
 				break;
 			default:
 				setMode(modeBootFlash | modeReset);
@@ -410,28 +545,24 @@ int parse_options(int argc, char *argv[]) {
 				show_help(argv[0]);
 				return 1;
 			case 'B':
-				if (strncmp(optarg, "-RTS", 4)==0) bootMode=SS_iRTS;
-				else if (strncmp(optarg, "-DTR", 4)==0) bootMode=SS_iDTR;
-				else if (strncmp(optarg, "RTS", 3)==0) bootMode=SS_RTS;
-				else if (strncmp(optarg, "DTR", 3)==0) bootMode=SS_DTR;
-				else {
-					fprintf(stderr, "ERROR: Boot must be -RTS, -DTR, RTS or DTR when specified\n");
+				if (parse_signal(&boot_signal) != 0) {
+					fprintf(stderr, "ERROR: Invalid boot signal specified\n");
 					show_help(argv[0]);
-					return 1;
+					return 1;					
 				}
+				//printf("Res: %u\tSignal Device: %u\tSignal id: %u\tInverted: %u\n", res, sigdata.device, sigdata.signal.id, sigdata.inverted);
 				break;
+
 			case 'R':
-				if (strncmp(optarg, "NONE", 4)==0) resetMode=SS_None;
-				else if (strncmp(optarg, "-RTS", 4)==0) resetMode=SS_iRTS;
-				else if (strncmp(optarg, "-DTR", 4)==0) resetMode=SS_iDTR;
-				else if (strncmp(optarg, "RTS", 3)==0) resetMode=SS_RTS;
-				else if (strncmp(optarg, "DTR", 3)==0) resetMode=SS_DTR;
-				else {
-					fprintf(stderr, "ERROR: Reset must be -RTS, -DTR, RTS, DTR or NONE when specified\n");
+				if (parse_signal(&reset_signal) != 0) {
+					fprintf(stderr, "ERROR: Invalid reset signal specified\n");
 					show_help(argv[0]);
-					return 1;
+					return 1;					
 				}
+				//printf("Res: %u\tSignal Device: %u\tSignal id: %u\tInverted: %u\n", res, sigdata.device, sigdata.signal.id, sigdata.inverted);
 				break;
+				
+
 		}
 	}
 
@@ -506,87 +637,23 @@ void show_help(char *name) {
 	);
 }
 
+
+
 void setMode(enum modeFlags flags)
 {
-//	printf("Setting mode: %u\n", flags);
-	switch (resetMode) {
-		case SS_DTR:
-			serial_signal_dtr(serial, flags & modeReset);
-			break;
-		case SS_iDTR:
-			serial_signal_dtr(serial, (~flags) & modeReset);
-			break;
-		case SS_RTS:
-			serial_signal_rts(serial, flags & modeReset);
-			break;
-		case SS_iRTS:
-			serial_signal_rts(serial, (~flags) & modeReset);
-			break;
-		default:
-			break;
+//	printf("Mode flags: %u\n", flags);
+	
+	if (flags & modeReset) {
+		set_signal(&reset_signal, 1);
+	} else {
+		set_signal(&reset_signal, 0);
 	}
-	switch (bootMode) {
-		case SS_DTR:
-			serial_signal_dtr(serial, flags & modeBootFlash);
-			break;
-		case SS_iDTR:
-			serial_signal_dtr(serial, (~flags) & modeBootFlash);
-			break;
-		case SS_RTS:
-			serial_signal_rts(serial, flags & modeBootFlash);
-			break;
-		case SS_iRTS:
-			serial_signal_rts(serial, (~flags) & modeBootFlash);
-			break;
-		default:
-			break;
+
+	if (flags & modeBootFlash) {
+		set_signal(&boot_signal, 1);
+	} else {
+		set_signal(&boot_signal, 0);
 	}
+	
 	usleep(1000);	//Provide small delay of 1 ms
 }
-
-//int stm32_hwreset(const serial_t* serial)
-//{
-//	//Note - This code does not check if the calls succeed which it should do
-//	printf("Hardware resetting device\n");
-//	printf("PRESS KEY TO KEEP FAILING - RESET HIGH\n"); getchar(); //DEBUG WAIT
-//	switch (resetMode) {
-//		case SS_DTR:
-//			serial_signal_dtr(serial, 1);
-//			break;
-//		case SS_iDTR:
-//			serial_signal_dtr(serial, 0);
-//			break;
-//		case SS_RTS:
-//			serial_signal_rts(serial, 1);
-//			break;
-//		case SS_iRTS:
-//			serial_signal_rts(serial, 0);
-//			break;
-//
-//		case SS_Default:
-//		case SS_None:
-//			printf("WARNING - Can't hardware reset without using hardware\n");
-//			break;
-//	}
-//	usleep(1000);	//Wait one ms
-//	printf("PRESS KEY TO KEEP FAILING - RESET LOW\n"); getchar(); //DEBUG WAIT
-//	switch (resetMode) {
-//		case SS_DTR:
-//			serial_signal_dtr(serial, 0);
-//			break;
-//		case SS_iDTR:
-//			serial_signal_dtr(serial, 1);
-//			break;
-//		case SS_RTS:
-//			serial_signal_rts(serial, 0);
-//			break;
-//		case SS_iRTS:
-//			serial_signal_rts(serial, 1);
-//			break;
-//
-//		case SS_Default:
-//		case SS_None:
-//			break;
-//	}
-//	return 1;
-//}

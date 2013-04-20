@@ -13,6 +13,7 @@ all:
 		serial_platform.c \
 		parsers/parsers.a \
 		stm32/stmreset_binary.c \
+		rpi_gpio.c \
 		-Wall
 
 clean:
