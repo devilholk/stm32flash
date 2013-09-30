@@ -43,7 +43,7 @@ Examples:
 
 	Use IO for boot selector, write flash and then reset
 	Using 1MBAUD (suitable for 24 MHz devices) on first USB serial
-		stm32flash -w filename /dev/ttyUSB0 -B cs.dtr -R cs.rts
+		stm32flash -w filename /dev/ttyUSB0 -B cs.dtr -R cs.rts -b 1000000
 ```
 
 
@@ -56,3 +56,8 @@ cd stm32flash
 make
 sudo make install
 ```
+
+Bugs and issues
+---------------
+* Currently this is only known to work on linux/unix-like systems. Getting it to work on mac is prioritized over Windows.
+* The default baudrate got broken when I removed baud rate validity check
