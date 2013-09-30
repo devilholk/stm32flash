@@ -98,6 +98,7 @@ enum modeFlags {
 
 
 /* functions */
+void show_io_list();
 int  parse_options(int argc, char *argv[]);
 void show_help(char *name);
 void setMode(enum modeFlags flags);
@@ -125,6 +126,8 @@ void set_signal(signal_data *sig, int value) {
 			} else {
 				RPI_GPIO_CLR = 1<<sig->signal.raspberry_gpio;
 			}
+			break;
+		default:
 			break;
 	}
 	
@@ -481,7 +484,7 @@ close:
 
 int parse_options(int argc, char *argv[]) {
 	int c;
-	while((c = getopt(argc, argv, "b:r:w:e:vn:g:fchus:R:B:")) != -1) {
+	while((c = getopt(argc, argv, "b:r:w:e:vn:g:fchus:R:B:l")) != -1) {
 		switch(c) {
 			case 'b':
 				baudRate = serial_get_baud(strtoul(optarg, NULL, 0));
@@ -524,6 +527,10 @@ int parse_options(int argc, char *argv[]) {
 			case 'n':
 				retry = strtoul(optarg, NULL, 0);
 				break;
+				
+			case 'l':
+				show_io_list();
+				return 1;
 
 			case 'g':
 				exec_flag = 1;
@@ -607,15 +614,13 @@ void show_help(char *name) {
 		"	-c		Resume the connection (don't send initial INIT)\n"
 		"			*Baud rate must be kept the same as the first init*\n"
 		"			This is useful if the reset fails\n"
-		"	-R signal	Reset device after upload using serial signal\n"
-			"			Signal can be DTR or RTS. A hyphen before the signal\n"
-			"			indicates it is inverted. Logic high is applied for reset\n"
+		"	-R signal	Reset device after upload using IO."
 			"			NONE can be given if one does not wish to reset at all\n"
-		"	-B signal	Use signal to select boot mode if a serial signal is connected\n"
-			"			to the boot selection pin. Signal can be DTR or RTS.\n"
-			"			A hyphen before the signal indicates it is inverted\n"
+			"			List availble IO with -l\n"
+		"	-B signal	Use signal to select boot mode using IO.\n"
 			"			Logic low is applied for system boot (upload) and logic high\n"
 			"			for normal boot\n"
+			"			List availble IO with -l\n"
 		"\n"
 		"Examples:\n"
 		"	Get device information:\n"
@@ -638,6 +643,39 @@ void show_help(char *name) {
 }
 
 
+void show_io_list() {
+	fprintf(stderr,
+		"IO           Description\n"
+		"-------      ------------------------------------\n"
+		"cs.dtr       Current serial ports DTR\n"
+		"cs.rts       Current serial ports RTS\n"
+		"rpio.gpio0   Raspberry pi GPIO 0\n"
+		"rpio.gpio1   Raspberry pi GPIO 1\n"
+		"rpio.gpio2   Raspberry pi GPIO 2\n"
+		"rpio.gpio3   Raspberry pi GPIO 3\n"
+		"rpio.gpio4   Raspberry pi GPIO 4\n"
+		"rpio.gpio7   Raspberry pi GPIO 7\n"
+		"rpio.gpio8   Raspberry pi GPIO 8\n"
+		"rpio.gpio9   Raspberry pi GPIO 9\n"
+		"rpio.gpio10  Raspberry pi GPIO 10\n"
+		"rpio.gpio11  Raspberry pi GPIO 11\n"
+		"rpio.gpio14  Raspberry pi GPIO 14\n"
+		"rpio.gpio15  Raspberry pi GPIO 15\n"
+		"rpio.gpio17  Raspberry pi GPIO 17\n"
+		"rpio.gpio18  Raspberry pi GPIO 18\n"
+		"rpio.gpio21  Raspberry pi GPIO 21\n"
+		"rpio.gpio22  Raspberry pi GPIO 22\n"
+		"rpio.gpio23  Raspberry pi GPIO 23\n"
+		"rpio.gpio24  Raspberry pi GPIO 24\n"
+		"rpio.gpio25  Raspberry pi GPIO 25\n"
+		"rpio.gpio27  Raspberry pi GPIO 27\n"
+		"none         Disable the feature\n"
+		"\n"
+		"A hyphen before a signal inverts it\n"
+		
+	);
+
+}
 
 void setMode(enum modeFlags flags)
 {

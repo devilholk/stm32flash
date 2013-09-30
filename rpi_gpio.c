@@ -24,7 +24,7 @@ void rpi_gpio_setup_io()
    close(rpi_gpio_mem_fd); //No need to keep mem_fd open after mmap
 
    if (rpi_gpio_map == MAP_FAILED) {
-      printf("mmap error %d\n", (int)rpi_gpio_map);//errno also set!
+      printf("mmap error %p\n", rpi_gpio_map);//errno also set!
       exit(-1);
    }
 
