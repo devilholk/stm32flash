@@ -20,7 +20,8 @@
 #include "serial.h"
 
 serial_baud_t serial_get_baud(const unsigned int baud) {
-	switch(baud) {
+	return baud;
+/*	switch(baud) {
 		case   1200: return SERIAL_BAUD_1200  ;
 		case   1800: return SERIAL_BAUD_1800  ;
 		case   2400: return SERIAL_BAUD_2400  ;
@@ -33,11 +34,12 @@ serial_baud_t serial_get_baud(const unsigned int baud) {
 
 		default:
 			return SERIAL_BAUD_INVALID;
-	}
+	}*/
 }
 
 const unsigned int serial_get_baud_int(const serial_baud_t baud) {
-	switch(baud) {
+	return baud;
+/*	switch(baud) {
 		case SERIAL_BAUD_1200  : return 1200  ;
 		case SERIAL_BAUD_1800  : return 1800  ;
 		case SERIAL_BAUD_2400  : return 2400  ;
@@ -51,7 +53,7 @@ const unsigned int serial_get_baud_int(const serial_baud_t baud) {
 		case SERIAL_BAUD_INVALID:
 		default:
 			return 0;
-	}
+	}*/
 }
 
 const unsigned int serial_get_bits_int(const serial_bits_t bits) {

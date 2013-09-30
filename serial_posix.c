@@ -111,7 +111,7 @@ serial_err_t serial_setup(serial_t *h, const serial_baud_t baud, const serial_bi
 	tcflag_t	port_parity;
 	tcflag_t	port_stop;
 
-	switch(baud) {
+/*	switch(baud) {
 		case SERIAL_BAUD_1200  : port_baud = B1200  ; break;
 		case SERIAL_BAUD_1800  : port_baud = B1800  ; break;
 		case SERIAL_BAUD_2400  : port_baud = B2400  ; break;
@@ -125,7 +125,8 @@ serial_err_t serial_setup(serial_t *h, const serial_baud_t baud, const serial_bi
 		case SERIAL_BAUD_INVALID:
 		default:
 			return SERIAL_ERR_INVALID_BAUD;
-	}
+	}*/
+	port_baud = baud;
 
 	switch(bits) {
 		case SERIAL_BITS_5: port_bits = CS5; break;
@@ -171,8 +172,9 @@ serial_err_t serial_setup(serial_t *h, const serial_baud_t baud, const serial_bi
 	h->newtio.c_oflag &= ~(OPOST | ONLCR);
 
 	/* setup the new settings */
-	cfsetispeed(&h->newtio, port_baud);
-	cfsetospeed(&h->newtio, port_baud);
+//	cfsetispeed(&h->newtio, port_baud);
+//	cfsetospeed(&h->newtio, port_baud);
+	cfsetspeed(&h->newtio, port_baud);
 	h->newtio.c_cflag |=
 		port_parity	|
 		port_bits	|
@@ -187,6 +189,9 @@ serial_err_t serial_setup(serial_t *h, const serial_baud_t baud, const serial_bi
 	serial_flush(h);
 	if (tcsetattr(h->fd, TCSANOW, &h->newtio) != 0)
 		return SERIAL_ERR_SYSTEM;
+
+
+//	printf("DEBUG: Set serial speed to %i / %i\n", cfgetispeed(&h->newtio), cfgetospeed(&h->newtio));
 
 	/* confirm they were set */
 	struct termios settings;
