@@ -611,6 +611,7 @@ void show_help(char *name) {
 		"	-s start_page	Flash at specified page (0 = flash start)\n"
 		"	-f		Force binary parser\n"
 		"	-h		Show this help\n"
+		"	-l		Show a list of available IO pins\n"
 		"	-c		Resume the connection (don't send initial INIT)\n"
 		"			*Baud rate must be kept the same as the first init*\n"
 		"			This is useful if the reset fails\n"

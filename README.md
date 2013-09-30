@@ -3,10 +3,7 @@ stm32flash
 
 Fork of https://code.google.com/p/stm32flash/stm32flash - http://stm32flash.googlecode.com/
 
-
-stm32flash - http://stm32flash.googlecode.com/
-
-
+```
 Usage: stm32flash [-bvngfhc] [-[rw] filename] [-RB [-]DTR|RTS] /dev/ttyS0
 	-b rate		Baud rate (default 115200)
 	-r filename	Read flash to file
@@ -19,6 +16,7 @@ Usage: stm32flash [-bvngfhc] [-[rw] filename] [-RB [-]DTR|RTS] /dev/ttyS0
 	-s start_page	Flash at specified page (0 = flash start)
 	-f		Force binary parser
 	-h		Show this help
+        -l              Show a list of available IO pins
 	-c		Resume the connection (don't send initial INIT)
 			*Baud rate must be kept the same as the first init*
 			This is useful if the reset fails
@@ -46,4 +44,15 @@ Examples:
 	Use IO for boot selector, write flash and then reset
 	Using 1MBAUD (suitable for 24 MHz devices) on first USB serial
 		stm32flash -w filename /dev/ttyUSB0 -B cs.dtr -R cs.rts
+```
 
+
+Installation
+-----------
+
+```
+git clone https://github.com/devilholk/stm32flash
+cd stm32flash
+make
+sudo make install
+```
