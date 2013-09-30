@@ -16,7 +16,7 @@ Usage: stm32flash [-bvngfhc] [-[rw] filename] [-RB [-]DTR|RTS] /dev/ttyS0
 	-s start_page	Flash at specified page (0 = flash start)
 	-f		Force binary parser
 	-h		Show this help
-	-l              Show a list of available IO pins
+	-l		Show a list of available IO pins
 	-c		Resume the connection (don't send initial INIT)
 			*Baud rate must be kept the same as the first init*
 			This is useful if the reset fails
