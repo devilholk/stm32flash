@@ -614,7 +614,7 @@ void show_help(char *name) {
 		"	-c		Resume the connection (don't send initial INIT)\n"
 		"			*Baud rate must be kept the same as the first init*\n"
 		"			This is useful if the reset fails\n"
-		"	-R signal	Reset device after upload using IO."
+		"	-R signal	Reset device after upload using IO.\n"
 			"			NONE can be given if one does not wish to reset at all\n"
 			"			List availble IO with -l\n"
 		"	-B signal	Use signal to select boot mode using IO.\n"
