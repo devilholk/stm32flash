@@ -633,7 +633,13 @@ void show_help(char *name) {
 		"		%s -r filename /dev/ttyS0\n"
 		"\n"
 		"	Start execution:\n"
-		"		%s -g 0x0 /dev/ttyS0\n",
+		"		%s -g 0x0 /dev/ttyS0\n"
+		"\n"
+		"	Use IO for boot selector, write flash and then reset\n"
+		"	Using 1MBAUD (suitable for 24 MHz devices) on first USB serial\n"
+		"		%s -w filename /dev/ttyUSB0 -B cs.dtr -R cs.rts\n"
+		"\n",
+		name,
 		name,
 		name,
 		name,
