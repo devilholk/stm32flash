@@ -46,7 +46,7 @@ parser_t	*parser		= NULL;
 
 /* settings */
 char		*device		= NULL;
-serial_baud_t	baudRate	= SERIAL_BAUD_115200;
+serial_baud_t	baudRate	= 115200;
 int		rd	 	= 0;
 int		wr		= 0;
 int		wu		= 0;
@@ -574,6 +574,7 @@ int parse_options(int argc, char *argv[]) {
 	}
 
 	for (c = optind; c < argc; ++c) {
+		printf("Kollar device: '%s\n'", argv[c]);
 		if (device) {
 			fprintf(stderr, "ERROR: Invalid parameter specified\n");
 			show_help(argv[0]);
