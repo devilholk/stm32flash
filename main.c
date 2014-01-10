@@ -484,7 +484,8 @@ close:
 
 int parse_options(int argc, char *argv[]) {
 	int c;
-	while((c = getopt(argc, argv, "b:r:w:e:vn:g:fchus:R:B:l")) != -1) {
+	while((c = getopt(argc, argv, "b:r:w:e:vn:g:fchus:R:B:l")) != -1)
+	{
 		switch(c) {
 			case 'b':
 				baudRate = serial_get_baud(strtoul(optarg, NULL, 0));
@@ -572,9 +573,11 @@ int parse_options(int argc, char *argv[]) {
 
 		}
 	}
-
+	//argc -=optind;
+//	argv +=optind;
+	printf("optind: %i\n",optind);
 	for (c = optind; c < argc; ++c) {
-		printf("Kollar device: '%s\n'", argv[c]);
+		printf("Kollar device: '%s', argv='%s'\n",device,argv[c]);
 		if (device) {
 			fprintf(stderr, "ERROR: Invalid parameter specified\n");
 			show_help(argv[0]);
