@@ -16,6 +16,10 @@
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+  This software have been modified by Mikael Lövqvist (user devilholk at github)
+  Software is not fully developed and tested on all platforms yet (2014-01-11)
+
 */
 
 #include <sys/types.h>
@@ -637,8 +641,9 @@ void show_help(char *name) {
 		"		%s -g 0x0 /dev/ttyS0\n"
 		"\n"
 		"	Use IO for boot selector, write flash and then reset\n"
-		"	Using 1MBAUD (suitable for 24 MHz devices) on first USB serial\n"
-		"		%s -w filename /dev/ttyUSB0 -B cs.dtr -R cs.rts -b 1000000\n"
+		"	Using 1MBAUD (suitable for 24 MHz devices using FTDI) on first USB serial\n"
+		"   Note that devices such as cp210x highest suitable baud is 921600\n"
+		"		%s -w filename -B cs.dtr -R cs.rts -b 1000000 /dev/ttyUSB0\n"
 		"\n",
 		name,
 		name,
