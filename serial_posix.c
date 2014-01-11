@@ -104,7 +104,9 @@ int serial_signal_rts(const serial_t *h, int state)
 { return serial_signal(h, TIOCM_RTS, state);}
 
 serial_err_t serial_setup(serial_t *h, const serial_baud_t baud, const serial_bits_t bits, const serial_parity_t parity, const serial_stopbit_t stopbit) {
+	printf("Vi ställer in serial!\n");
 	assert(h && h->fd > -1);
+	printf("Vi ställer in serial mer!\n");
 
 	speed_t		port_baud;
 	tcflag_t	port_bits;
@@ -163,6 +165,7 @@ serial_err_t serial_setup(serial_t *h, const serial_baud_t baud, const serial_bi
 		h->parity  == parity &&
 		h->stopbit == stopbit
 	) return SERIAL_ERR_OK;
+	printf("SERIAL_ERROR inte OK!\n");
 
 	/* reset the settings */
 	cfmakeraw(&h->newtio);
@@ -187,15 +190,20 @@ serial_err_t serial_setup(serial_t *h, const serial_baud_t baud, const serial_bi
 
 	/* set the settings */
 	serial_flush(h);
-	if (tcsetattr(h->fd, TCSANOW, &h->newtio) != 0)
-		return SERIAL_ERR_SYSTEM;
+	if (tcsetattr(h->fd, TCSANOW, &h->newtio) != 0) {
+		printf("SERIAL_ERR_SYSTEM!\n");
 
+		return SERIAL_ERR_SYSTEM;
+	}
 
 //	printf("DEBUG: Set serial speed to %i / %i\n", cfgetispeed(&h->newtio), cfgetospeed(&h->newtio));
 
 	/* confirm they were set */
 	struct termios settings;
 	tcgetattr(h->fd, &settings);
+
+	printf("Något är okänt!\n");
+
 	if (
 		settings.c_iflag != h->newtio.c_iflag ||
 		settings.c_oflag != h->newtio.c_oflag ||
@@ -208,6 +216,7 @@ serial_err_t serial_setup(serial_t *h, const serial_baud_t baud, const serial_bi
 	h->bits	      = bits;
 	h->parity     = parity;
 	h->stopbit    = stopbit;
+	printf("SERIAL_ERROR ÄR OK!\n");
 	return SERIAL_ERR_OK;
 }
 

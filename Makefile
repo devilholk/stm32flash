@@ -5,7 +5,7 @@ export AR
 
 all:
 	$(MAKE) -C parsers
-	$(CC) -g -o stm32flash -I./ \
+	$(CC) -std=gnu99 -g -o stm32flash -I./ \
 		main.c \
 		utils.c \
 		stm32.c \

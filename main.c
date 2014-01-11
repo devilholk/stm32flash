@@ -202,7 +202,11 @@ void gpio_rpi_output(int g) {
 }
 
 int main(int argc, char* argv[]) {
-	
+
+	for(int penis=0;penis!=argc;penis++) {
+		printf ("Argument #%i = '%s'\n", penis, argv[penis]);
+	}
+
 	reset_signal.device = SD_Default;
 	boot_signal.device = SD_Default;
 	
@@ -277,11 +281,15 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
+	printf("Innan serial öppnar\n");
+
 	serial = serial_open(device);
 	if (!serial) {
 		perror(device);
 		goto close;
 	}
+
+	printf("Vi skall ställa in porten nu!\n");
 
 	if (serial_setup(
 		serial,
@@ -293,6 +301,8 @@ int main(int argc, char* argv[]) {
 		perror(device);
 		goto close;
 	}
+
+	printf("Vi skall flippa flödessignaler och shit nu!\n");
 
 	setMode(modeBootSystem);
 	setMode(modeBootSystem | modeReset);
@@ -484,8 +494,17 @@ close:
 
 int parse_options(int argc, char *argv[]) {
 	int c;
-	while((c = getopt(argc, argv, "b:r:w:e:vn:g:fchus:R:B:l")) != -1)
+	printf("parse_options optind: %i\n",optind);
+
+	char debug_test() {
+		char res = getopt(argc, argv, "b:r:w:e:vn:g:fchus:R:B:l");
+		printf ("getopt i debug_test = '%c'\n", res);
+		return res;
+	}
+
+	while((c = debug_test()) != -1)
 	{
+		printf("while optind: %i\n",optind);
 		switch(c) {
 			case 'b':
 				baudRate = serial_get_baud(strtoul(optarg, NULL, 0));
@@ -495,6 +514,7 @@ int parse_options(int argc, char *argv[]) {
 						fprintf(stderr, " %d\n", serial_get_baud_int(baudRate));
 					return 1;
 				}
+				printf("break: b\n");
 				break;
 
 			case 'r':
@@ -506,6 +526,7 @@ int parse_options(int argc, char *argv[]) {
 					return 1;
 				}
 				filename = optarg;
+				printf("break: r, w\n");
 				break;
 			case 'e':
 				npages = strtoul(optarg, NULL, 0);
@@ -513,6 +534,7 @@ int parse_options(int argc, char *argv[]) {
 					fprintf(stderr, "ERROR: You need to specify a page count between 0 and 255");
 					return 1;
 				}
+				printf("break: e\n");
 				break;
 			case 'u':
 				wu = 1;
@@ -520,37 +542,46 @@ int parse_options(int argc, char *argv[]) {
 					fprintf(stderr, "ERROR: Invalid options, can't write unprotect and read/write at the same time\n");
 					return 1;
 				}
+				printf("break: u\n");
 				break;
 			case 'v':
 				verify = 1;
+				printf("break: v\n");
 				break;
 
 			case 'n':
 				retry = strtoul(optarg, NULL, 0);
+				printf("break: n\n");
 				break;
 				
 			case 'l':
 				show_io_list();
+				printf("return: l\n");
 				return 1;
 
 			case 'g':
 				exec_flag = 1;
 				execute   = strtoul(optarg, NULL, 0);
+				printf("break: g\n");
 				break;
 			case 's':
 				spage    = strtoul(optarg, NULL, 0);
+				printf("break: s\n");
 				break;
 
 			case 'f':
 				force_binary = 1;
+				printf("break: f\n");
 				break;
 
 			case 'c':
 				init_flag = 0;
+				printf("break: c\n");
 				break;
 
 			case 'h':
 				show_help(argv[0]);
+				printf("return: h\n");
 				return 1;
 			case 'B':
 				if (parse_signal(&boot_signal) != 0) {
@@ -559,6 +590,7 @@ int parse_options(int argc, char *argv[]) {
 					return 1;					
 				}
 				//printf("Res: %u\tSignal Device: %u\tSignal id: %u\tInverted: %u\n", res, sigdata.device, sigdata.signal.id, sigdata.inverted);
+				printf("break: B\n");
 				break;
 
 			case 'R':
@@ -568,14 +600,19 @@ int parse_options(int argc, char *argv[]) {
 					return 1;					
 				}
 				//printf("Res: %u\tSignal Device: %u\tSignal id: %u\tInverted: %u\n", res, sigdata.device, sigdata.signal.id, sigdata.inverted);
+				printf("break: R\n");
 				break;
 				
+			default:
+				printf("default: '%c'\n", c);
+				break;
 
 		}
 	}
+	printf("while slut optind %i\n", optind);
 	//argc -=optind;
 //	argv +=optind;
-	printf("optind: %i\n",optind);
+	printf("optind: %i argc: %i\n",optind, argc);
 	for (c = optind; c < argc; ++c) {
 		printf("Kollar device: '%s', argv='%s'\n",device,argv[c]);
 		if (device) {
@@ -585,6 +622,7 @@ int parse_options(int argc, char *argv[]) {
 		}
 		device = argv[c];
 	}
+	printf("Device: '%s'\n",device);
 
 	if (device == NULL) {
 		fprintf(stderr, "ERROR: Device not specified\n");
@@ -598,6 +636,7 @@ int parse_options(int argc, char *argv[]) {
 		return 1;
 	}
 
+	printf("Nu drar vi!\n");
 	return 0;
 }
 
